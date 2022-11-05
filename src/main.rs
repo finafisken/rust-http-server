@@ -1,16 +1,23 @@
+use rust_http_server::ThreadPool;
+
 use std::{
     fs,
     io::{prelude::*, BufReader},
     net::{TcpListener, TcpStream},
+    thread,
+    time::Duration,
 };
 
 fn main() {
-    let listener = TcpListener::bind("127.0.0.1:1337").unwrap();
+    let listener = TcpListener::bind("127.0.0.1:1338").unwrap();
+    let pool = ThreadPool::new(4);
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
-        handle_connection(stream);
+        pool.execute(|| {
+            handle_connection(stream);
+        });
     }
 }
 
@@ -20,6 +27,12 @@ fn handle_connection(mut stream: TcpStream) {
 
     let response = match &request_line[..] {
         "GET / HTTP/1.1" => {
+            let http_header = "200 OK";
+            let body = fs::read_to_string("test.html").unwrap();
+            build_response_string(http_header, &body)
+        }
+        "GET /sleep HTTP/1.1" => {
+            thread::sleep(Duration::from_secs(5));
             let http_header = "200 OK";
             let body = fs::read_to_string("test.html").unwrap();
             build_response_string(http_header, &body)
